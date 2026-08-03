@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Foodtruck Finder — live von Partyretter</title>
+<meta name="description" content="Finde Foodtrucks live in deiner Nähe — mit Karte und Navigation. Ein Service von Partyretter.">
+<meta name="theme-color" content="#14100a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico?v=1">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  :root{
+    --bg:#F5F0E8; --ink:#1A1208; --muted:rgba(26,18,8,.55); --faint:rgba(26,18,8,.4);
+    --gold:#C8922A; --dark:#14100a; --cream:#F5F0E8; --line:#E0D5C3;
+    --live:#DC2626; --here:#16A34A; --soon:#2563EB; --week:#7C3AED;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column}
+
+  /* Kopf */
+  header{background:var(--dark);color:var(--cream);padding:calc(env(safe-area-inset-top) + 10px) 14px 0;flex:0 0 auto}
+  .head-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .brand{font-family:'Fraunces',serif;font-weight:900;font-size:21px;color:var(--gold);line-height:1.15;padding:4px 0 8px}
+  .brand small{display:block;font-family:'DM Sans',sans-serif;font-weight:500;font-size:11px;color:rgba(245,240,232,.55);letter-spacing:.06em}
+  .tabs{display:flex;gap:4px}
+  .tab{appearance:none;border:none;background:transparent;color:rgba(245,240,232,.65);font:700 14px 'DM Sans',sans-serif;
+    padding:10px 14px;border-radius:12px 12px 0 0;cursor:pointer}
+  .tab.on{background:var(--bg);color:var(--ink)}
+
+  main{flex:1 1 auto;position:relative;overflow:hidden;display:flex;flex-direction:column}
+  .view{position:absolute;inset:0;display:none;flex-direction:column}
+  .view.on{display:flex}
+
+  /* ---- Karte ---- */
+  #map{flex:1 1 auto;min-height:200px}
+  .map-top{position:absolute;z-index:600;top:10px;left:10px;right:10px;display:grid;gap:8px;pointer-events:none}
+  .search-row{display:flex;gap:8px;pointer-events:auto}
+  .search-row input{flex:1;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font:500 15px 'DM Sans',sans-serif;
+    background:#fff;box-shadow:0 3px 14px rgba(0,0,0,.12);color:var(--ink)}
+  .btn-ico{border:none;border-radius:12px;background:#fff;box-shadow:0 3px 14px rgba(0,0,0,.12);width:46px;min-width:46px;
+    font-size:20px;cursor:pointer;color:var(--ink)}
+  .legend{display:flex;gap:6px;flex-wrap:wrap;pointer-events:auto}
+  .chip{display:flex;align-items:center;gap:5px;background:#fff;border-radius:999px;padding:5px 10px;font:600 11.5px 'DM Sans',sans-serif;
+    box-shadow:0 2px 8px rgba(0,0,0,.1);color:var(--ink)}
+  .dot{width:9px;height:9px;border-radius:50%}
+  .map-note{position:absolute;z-index:600;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(20,16,10,.88);color:var(--cream);
+    padding:8px 14px;border-radius:10px;font-size:13px;max-width:92%;text-align:center;display:none}
+
+  /* Popup */
+  .leaflet-popup-content{margin:12px 14px;font-family:'DM Sans',sans-serif}
+  .pop{min-width:200px;max-width:240px}
+  .pop h3{font-family:'Fraunces',serif;font-weight:900;font-size:16px;margin-bottom:2px}
+  .pop .status{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+  .pop img{width:100%;max-height:110px;object-fit:cover;border-radius:8px;margin-bottom:6px}
+  .pop .row{font-size:12.5px;color:var(--muted);margin-bottom:3px;line-height:1.35}
+  .pop a.navi{display:block;text-align:center;background:var(--gold);color:#fff;font-weight:700;font-size:14px;
+    padding:10px 12px;border-radius:10px;text-decoration:none;margin-top:8px}
+
+  /* ---- Foodtruck-Bereich ---- */
+  .panel{flex:1;overflow-y:auto;padding:18px 16px calc(env(safe-area-inset-bottom) + 24px);max-width:560px;width:100%;margin:0 auto}
+  .panel h2{font-family:'Fraunces',serif;font-weight:900;font-size:22px;margin-bottom:6px}
+  .panel p.sub{color:var(--muted);font-size:14px;margin-bottom:16px;line-height:1.45}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  .card h3{font-size:15px;font-weight:700;margin-bottom:8px}
+  label.f{display:block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 4px}
+  input.f,textarea.f{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font:500 15px 'DM Sans',sans-serif;background:#fff;color:var(--ink)}
+  .btn{display:block;width:100%;border:none;border-radius:12px;padding:14px;font:700 15px 'DM Sans',sans-serif;cursor:pointer}
+  .btn.gold{background:var(--gold);color:#fff}
+  .btn.red{background:var(--live);color:#fff;font-size:16px}
+  .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn[disabled]{opacity:.55;cursor:default}
+  .msg{font-size:13px;margin-top:10px;color:#B45309;line-height:1.4}
+  .ok-msg{color:#166534}
+  .hours{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 12px}
+  .hours button{padding:8px 16px;border-radius:9px;font:600 14px 'DM Sans',sans-serif;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink)}
+  .hours button.on{border:2px solid var(--gold);background:var(--gold);color:#fff}
+  .livebox{background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.35);border-radius:12px;padding:12px;margin-bottom:10px}
+  .livebox b{color:#B91C1C;font-size:14px}
+  .livebox div{font-size:13px;color:var(--muted);margin-top:2px}
+  .loc-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .loc-item .t{font-size:13.5px;line-height:1.4}
+  .loc-item .t small{color:var(--muted)}
+  .loc-item button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;color:#B91C1C}
+  .badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;color:#fff;margin-right:5px;vertical-align:1px}
+  .topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .topline .who{font-size:13.5px;color:var(--muted)}
+  .topline button{border:none;background:none;color:var(--gold);font:700 13px 'DM Sans',sans-serif;cursor:pointer}
+
+  footer{flex:0 0 auto;background:var(--dark);color:rgba(245,240,232,.75);font-size:12.5px;text-align:center;
+    padding:9px 12px calc(env(safe-area-inset-bottom) + 9px)}
+  footer a{color:var(--gold);font-weight:700;text-decoration:none}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-row">
+    <div class="brand">🚚 Foodtruck Finder<small>live von Partyretter</small></div>
+  </div>
+  <nav class="tabs">
+    <button class="tab on" id="tabMap" type="button">🗺️ Karte</button>
+    <button class="tab" id="tabTruck" type="button">🚚 Für Foodtrucks</button>
+  </nav>
+</header>
+
+<main>
+  <!-- Kundenansicht: die Karte -->
+  <section class="view on" id="viewMap">
+    <div id="map"></div>
+    <div class="map-top">
+      <div class="search-row">
+        <input id="q" type="search" placeholder="Stadt oder PLZ eingeben" autocomplete="off">
+        <button class="btn-ico" id="locBtn" type="button" title="Mein Standort">📍</button>
+      </div>
+      <div class="legend">
+        <span class="chip"><span class="dot" style="background:var(--live)"></span>LIVE</span>
+        <span class="chip"><span class="dot" style="background:var(--here)"></span>Jetzt hier</span>
+        <span class="chip"><span class="dot" style="background:var(--soon)"></span>Kommt bald</span>
+        <span class="chip"><span class="dot" style="background:var(--week)"></span>Wochenplatz</span>
+      </div>
+    </div>
+    <div class="map-note" id="mapNote"></div>
+  </section>
+
+  <!-- Betreiber-Ansicht -->
+  <section class="view" id="viewTruck">
+    <div class="panel" id="truckPanel"><!-- wird per JS gefüllt --></div>
+  </section>
+</main>
+
+<footer>Ein Service von <a href="https://partyretter.com" target="_blank" rel="noopener">Partyretter</a> — Foodtrucks, Privatköche, Getränke &amp; Events buchen</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(function(){
+  "use strict";
+  var API = "https://partyretter.com/api";
+  var $ = function(id){ return document.getElementById(id); };
+
+  /* ---------- kleine Helfer ---------- */
+  function getToken(){ return localStorage.getItem("ftf_token"); }
+  function getUser(){ try{ return JSON.parse(localStorage.getItem("ftf_user")||"null"); }catch(e){ return null; } }
+  function setAuth(t,u){ localStorage.setItem("ftf_token",t); localStorage.setItem("ftf_user",JSON.stringify(u)); }
+  function clearAuth(){ localStorage.removeItem("ftf_token"); localStorage.removeItem("ftf_user"); }
+  function api(path, opts){
+    opts = opts || {};
+    var headers = { "Content-Type":"application/json" };
+    var t = getToken(); if(t) headers["Authorization"] = "Bearer " + t;
+    if(opts.headers) for(var k in opts.headers) headers[k]=opts.headers[k];
+    opts.headers = headers;
+    return fetch(API + path, opts);
+  }
+  function esc(s){ var d=document.createElement("div"); d.textContent=String(s==null?"":s); return d.innerHTML; }
+  function fmtDate(x){ var d=new Date(x); return d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}); }
+  function remainingText(dateTo){
+    var ms = new Date(dateTo).getTime() - Date.now();
+    if(ms<=0) return "abgelaufen";
+    var m = Math.round(ms/60000);
+    if(m<60) return "noch "+m+" Min.";
+    var h = Math.floor(m/60), r = m%60;
+    return r===0 ? "noch "+h+" Std." : "noch "+h+" Std. "+r+" Min.";
+  }
+
+  /* ---------- Tabs ---------- */
+  function show(which){
+    $("viewMap").classList.toggle("on", which==="map");
+    $("viewTruck").classList.toggle("on", which==="truck");
+    $("tabMap").classList.toggle("on", which==="map");
+    $("tabTruck").classList.toggle("on", which==="truck");
+    if(which==="map"){ setTimeout(function(){ map.invalidateSize(); }, 60); }
+    if(which==="truck"){ renderTruckPanel(); }
+  }
+  $("tabMap").onclick=function(){ show("map"); };
+  $("tabTruck").onclick=function(){ show("truck"); };
+
+  /* ---------- Karte ---------- */
+  var map = L.map("map", { zoomControl:true }).setView([51.163, 10.447], 6);
+
+  // Kacheln: MapTiler (Schlüssel erlaubt *.partyretter.com), Rückfall OpenStreetMap.
+  // MapTiler liefert bei Ablehnung ein gültiges PNG mit Status 403 — deshalb der fetch-Vorab-Check.
+  var MT_KEY="P4tAQzYqKcheupE7yw6c", MT_STYLE="streets-v2";
+  var MT_URL="https://api.maptiler.com/maps/"+MT_STYLE+"/{z}/{x}/{y}.png?key="+MT_KEY;
+  var OSM_URL="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+  var current = L.tileLayer(OSM_URL,{maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(map);
+  fetch("https://api.maptiler.com/maps/"+MT_STYLE+"/6/33/21.png?key="+MT_KEY, {referrerPolicy:"origin"})
+    .then(function(r){ return r.ok; }).catch(function(){ return false; })
+    .then(function(ok){
+      if(!ok) return;
+      var layer=L.tileLayer(MT_URL,{maxZoom:19, attribution:'&copy; MapTiler &copy; OpenStreetMap', referrerPolicy:"origin"});
+      var fails=0;
+      layer.on("tileerror", function(){ fails+=1; if(fails===6){ try{ map.removeLayer(layer); current=L.tileLayer(OSM_URL,{maxZoom:19}).addTo(map); }catch(e){} } });
+      layer.addTo(map); map.removeLayer(current); current=layer;
+    });
+
+  var userPos=null, markersLayer=L.layerGroup().addTo(map);
+
+  function note(text, ms){
+    var n=$("mapNote"); n.textContent=text; n.style.display="block";
+    clearTimeout(note._t); note._t=setTimeout(function(){ n.style.display="none"; }, ms||4200);
+  }
+
+  // Status wie auf der Partyretter-Karte: LIVE rot, Jetzt hier gruen, Kommt bald blau, Wochenplatz lila.
+  function statusOf(l){
+    var now=Date.now(), from=new Date(l.dateFrom).getTime(), to=new Date(l.dateTo).getTime();
+    if(l.locationType==="live" && now>=from && now<=to) return {key:"live", label:"LIVE — jetzt vor Ort", color:"#DC2626"};
+    if(l.locationType==="wochenplatz") return {key:"week", label:"Wochenplatz", color:"#7C3AED"};
+    if(now>=from && now<=to) return {key:"here", label:"Jetzt hier", color:"#16A34A"};
+    if(from>now) return {key:"soon", label:"Kommt bald", color:"#2563EB"};
+    return null;
+  }
+  function distanceKm(lat,lng){
+    if(!userPos) return null;
+    var R=6371, dLat=(lat-userPos.lat)*Math.PI/180, dLng=(lng-userPos.lng)*Math.PI/180;
+    var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(userPos.lat*Math.PI/180)*Math.cos(lat*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+
+  function popupHtml(l, st){
+    var h='<div class="pop">';
+    h+='<div class="status" style="color:'+st.color+'">'+esc(st.label)+'</div>';
+    h+='<h3>'+esc(l.providerName||"Foodtruck")+'</h3>';
+    if(l.providerImage) h+='<img src="'+esc(l.providerImage)+'" alt="" loading="lazy">';
+    if(l.eventName) h+='<div class="row">🎪 '+esc(l.eventName)+'</div>';
+    h+='<div class="row">📍 '+esc(l.address||"")+'</div>';
+    h+='<div class="row">🕐 '+fmtDate(l.dateFrom)+' – '+fmtDate(l.dateTo)+'</div>';
+    if(l.openingHours) h+='<div class="row">⏰ '+esc(l.openingHours)+'</div>';
+    var km=distanceKm(l.lat,l.lng);
+    if(km!=null) h+='<div class="row">🚗 ca. '+ (km<10 ? km.toFixed(1) : Math.round(km)) +' km entfernt</div>';
+    if(l.notes) h+='<div class="row">'+esc(l.notes)+'</div>';
+    h+='<a class="navi" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination='+l.lat+','+l.lng+'">🧭 Route mit Google Maps</a>';
+    h+='</div>';
+    return h;
+  }
+
+  function loadTrucks(){
+    api("/foodtruck-locations").then(function(r){ return r.ok ? r.json() : {locations:[]}; })
+      .then(function(data){
+        markersLayer.clearLayers();
+        var list=(data.locations||[]);
+        var count=0;
+        list.forEach(function(l){
+          if(l.lat==null||l.lng==null) return;
+          var st=statusOf(l); if(!st) return;
+          count+=1;
+          var m=L.circleMarker([l.lat,l.lng],{
+            radius: st.key==="live" ? 11 : 9,
+            color:"#fff", weight:2, fillColor:st.color, fillOpacity:.95
+          });
+          m.bindPopup(popupHtml(l,st), {maxWidth:260});
+          m.addTo(markersLayer);
+        });
+        if(count===0){ note("Gerade ist kein Foodtruck eingetragen. Schau später nochmal vorbei."); }
+      })
+      .catch(function(){ note("Daten konnten nicht geladen werden. Prüf deine Internetverbindung."); });
+  }
+
+  function locate(){
+    if(!navigator.geolocation){ note("Standortbestimmung wird nicht unterstützt — nutz die Suche oben."); return; }
+    navigator.geolocation.getCurrentPosition(
+      function(pos){
+        userPos={lat:pos.coords.latitude, lng:pos.coords.longitude};
+        L.circleMarker([userPos.lat,userPos.lng],{radius:7,color:"#fff",weight:2,fillColor:"#C8922A",fillOpacity:1})
+          .bindPopup("Du bist hier").addTo(markersLayer);
+        map.setView([userPos.lat,userPos.lng], 12);
+        loadTrucks();
+      },
+      function(err){
+        note(err.code===err.PERMISSION_DENIED
+          ? "Standort abgelehnt — gib oben einfach Stadt oder PLZ ein."
+          : "Standort nicht gefunden — gib oben Stadt oder PLZ ein.");
+      },
+      {enableHighAccuracy:true, timeout:12000, maximumAge:60000}
+    );
+  }
+  $("locBtn").onclick=locate;
+
+  $("q").addEventListener("keydown", function(e){
+    if(e.key!=="Enter") return;
+    e.preventDefault();
+    var q=$("q").value.trim(); if(!q) return;
+    api("/foodtruck-locations/geocode",{method:"POST",body:JSON.stringify({query:q})})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var hit=d.results && d.results[0];
+        if(!hit){ note("Ort nicht gefunden — versuch es mit PLZ und Stadt."); return; }
+        map.setView([hit.lat,hit.lng], 12);
+        $("q").blur();
+      })
+      .catch(function(){ note("Suche gerade nicht möglich."); });
+  });
+
+  /* ---------- Betreiber-Bereich ---------- */
+  var liveHours = 2; // Standard: 2 Stunden (Alexanders Vorgabe)
+  var myLive = null;
+
+  function renderTruckPanel(){
+    var p=$("truckPanel");
+    var u=getUser();
+    if(!getToken() || !u){
+      p.innerHTML =
+        '<h2>Für Foodtruck-Betreiber</h2>'+
+        '<p class="sub">Melde dich mit deinem Partyretter-Konto an. Dann zeigst du mit einem Knopfdruck, wo du gerade stehst — deine Kunden sehen dich sofort auf der Karte.</p>'+
+        '<div class="card">'+
+          '<label class="f" for="liEmail">E-Mail</label><input class="f" id="liEmail" type="email" autocomplete="email">'+
+          '<label class="f" for="liPass">Passwort</label><input class="f" id="liPass" type="password" autocomplete="current-password">'+
+          '<div style="height:12px"></div>'+
+          '<button class="btn gold" id="liBtn" type="button">Anmelden</button>'+
+          '<div class="msg" id="liMsg"></div>'+
+        '</div>'+
+        '<p class="sub" style="margin-top:4px">Noch kein Konto? Registrier dich auf <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">partyretter.com</a> als Anbieter (Kategorie Foodtruck).</p>';
+      $("liBtn").onclick=doLogin;
+      $("liPass").addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); doLogin(); } });
+      return;
+    }
+    p.innerHTML =
+      '<div class="topline"><div class="who">Angemeldet als <b>'+esc(u.name||u.email)+'</b></div><button id="loBtn" type="button">Abmelden</button></div>'+
+      '<div class="card" id="liveCard"><h3>🔴 Jetzt live gehen</h3><div id="liveInner">Lade…</div></div>'+
+      '<div class="card"><h3>📅 Standort anlegen</h3>'+
+        '<label class="f" for="npAddr">Adresse (Straße, PLZ, Ort)</label><input class="f" id="npAddr" type="text">'+
+        '<label class="f" for="npFrom">Von</label><input class="f" id="npFrom" type="datetime-local">'+
+        '<label class="f" for="npTo">Bis</label><input class="f" id="npTo" type="datetime-local">'+
+        '<label class="f" for="npEvent">Event-Name (freiwillig)</label><input class="f" id="npEvent" type="text" placeholder="z. B. Stadtfest Laupheim">'+
+        '<div style="height:12px"></div>'+
+        '<button class="btn gold" id="npBtn" type="button">Standort speichern</button>'+
+        '<div class="msg" id="npMsg"></div>'+
+      '</div>'+
+      '<div class="card"><h3>🗂️ Deine Standorte</h3><div id="myLocs">Lade…</div></div>'+
+      '<p class="sub">Profil, Fotos, Preise und alles Weitere pflegst du wie gewohnt auf <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">partyretter.com</a>.</p>';
+    $("loBtn").onclick=function(){ clearAuth(); renderTruckPanel(); };
+    $("npBtn").onclick=createLocation;
+    loadLive(); loadMyLocations();
+  }
+
+  function doLogin(){
+    var email=$("liEmail").value.trim(), pass=$("liPass").value;
+    var msg=$("liMsg"); msg.textContent="";
+    if(!email||!pass){ msg.textContent="Bitte E-Mail und Passwort eingeben."; return; }
+    $("liBtn").disabled=true;
+    api("/auth/login",{method:"POST",body:JSON.stringify({email:email,password:pass})})
+      .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
+      .then(function(res){
+        if(!res.ok){ msg.textContent=res.d.error||"Anmeldung fehlgeschlagen."; $("liBtn").disabled=false; return; }
+        setAuth(res.d.token, res.d.user);
+        renderTruckPanel();
+      })
+      .catch(function(){ msg.textContent="Keine Verbindung zum Server."; $("liBtn").disabled=false; });
+  }
+
+  function agbHint(el){
+    el.innerHTML='<div class="msg">Dein Konto muss einmal die aktuellen AGB bestätigen. Melde dich dafür kurz auf <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold)">partyretter.com</a> an — danach klappt es hier.</div>';
+  }
+  function foodtruckHint(el){
+    el.innerHTML='<div class="msg">Dieses Konto hat noch kein Foodtruck-Profil. Leg es auf <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold)">partyretter.com</a> an (Kategorie Foodtruck) — danach kannst du hier live gehen.</div>';
+  }
+
+  function loadLive(){
+    var inner=$("liveInner");
+    api("/providers/me/live").then(function(r){
+      if(r.status===403){ return r.json().then(function(d){ if(d.needsAgbConsent){ agbHint(inner); } else { foodtruckHint(inner); } throw "handled"; }); }
+      if(r.status===404){ foodtruckHint(inner); throw "handled"; }
+      return r.json();
+    }).then(function(d){
+      myLive = d.live || null;
+      renderLive();
+    }).catch(function(e){ if(e!=="handled" && inner) inner.innerHTML='<div class="msg">Konnte den Live-Status nicht laden.</div>'; });
+  }
+
+  function renderLive(){
+    var inner=$("liveInner"); if(!inner) return;
+    if(myLive){
+      inner.innerHTML=
+        '<div class="livebox"><b>Du bist LIVE — '+remainingText(myLive.dateTo)+'</b><div>📍 '+esc(myLive.address||"")+'</div></div>'+
+        '<button class="btn ghost" id="stopBtn" type="button">Ich bin weg — Live beenden</button>';
+      $("stopBtn").onclick=function(){
+        $("stopBtn").disabled=true;
+        api("/providers/me/live",{method:"DELETE"}).then(function(){ myLive=null; renderLive(); loadTrucks(); });
+      };
+      return;
+    }
+    var hoursHtml='';
+    [2,4,6,8].forEach(function(h){ hoursHtml+='<button type="button" data-h="'+h+'" class="'+(h===liveHours?"on":"")+'">'+h+' Std.</button>'; });
+    inner.innerHTML=
+      '<label class="f">Wie lange stehst du dort?</label>'+
+      '<div class="hours" id="hoursRow">'+hoursHtml+'</div>'+
+      '<button class="btn red" id="goLive" type="button">📍 Ich stehe jetzt hier — LIVE</button>'+
+      '<div style="height:8px"></div>'+
+      '<label class="f" for="liveAddr">Oder Adresse eintippen</label>'+
+      '<div style="display:flex;gap:6px"><input class="f" id="liveAddr" type="text" placeholder="Straße, PLZ, Ort" style="flex:1">'+
+      '<button class="btn ghost" id="liveAddrBtn" type="button" style="width:auto;padding:11px 16px">Setzen</button></div>'+
+      '<div class="msg" id="liveMsg"></div>';
+    $("hoursRow").addEventListener("click",function(e){
+      var b=e.target.closest("button"); if(!b) return;
+      liveHours=parseInt(b.getAttribute("data-h"),10);
+      Array.prototype.forEach.call($("hoursRow").children,function(x){ x.classList.toggle("on", x===b); });
+    });
+    $("goLive").onclick=goLiveGps;
+    $("liveAddrBtn").onclick=goLiveAddress;
+  }
+
+  function sendLive(lat,lng,addr){
+    var msg=$("liveMsg");
+    api("/providers/me/live",{method:"POST",body:JSON.stringify({lat:lat,lng:lng,address:addr,hours:liveHours})})
+      .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,d:d}; }); })
+      .then(function(res){
+        if(!res.ok){ msg.textContent=res.d.error||"Live-Standort konnte nicht gesetzt werden."; return; }
+        loadLive(); loadTrucks();
+      })
+      .catch(function(){ msg.textContent="Keine Verbindung zum Server."; });
+  }
+  function goLiveGps(){
+    var msg=$("liveMsg"); msg.textContent="";
+    if(!navigator.geolocation){ msg.textContent="Kein GPS verfügbar — nutz das Adressfeld."; return; }
+    $("goLive").disabled=true; $("goLive").textContent="Moment…";
+    navigator.geolocation.getCurrentPosition(function(pos){
+      var lat=pos.coords.latitude, lng=pos.coords.longitude;
+      api("/foodtruck-locations/reverse-geocode",{method:"POST",body:JSON.stringify({lat:lat,lng:lng})})
+        .then(function(r){ return r.ok ? r.json() : {}; }).catch(function(){ return {}; })
+        .then(function(d){ sendLive(lat,lng,d.displayName||""); });
+    }, function(err){
+      $("goLive").disabled=false; $("goLive").textContent="📍 Ich stehe jetzt hier — LIVE";
+      msg.textContent = err.code===err.PERMISSION_DENIED
+        ? "Standortzugriff abgelehnt — erlaub ihn in den Einstellungen oder nutz das Adressfeld."
+        : "Standort nicht gefunden — nutz das Adressfeld.";
+    }, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
+  }
+  function goLiveAddress(){
+    var q=$("liveAddr").value.trim(), msg=$("liveMsg"); msg.textContent="";
+    if(!q){ msg.textContent="Bitte Adresse eingeben."; return; }
+    api("/foodtruck-locations/geocode",{method:"POST",body:JSON.stringify({query:q})})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var hit=d.results && d.results[0];
+        if(!hit){ msg.textContent="Adresse nicht gefunden — mit Straße, PLZ und Ort probieren."; return; }
+        sendLive(hit.lat,hit.lng,hit.displayName);
+      })
+      .catch(function(){ msg.textContent="Adresssuche fehlgeschlagen."; });
+  }
+
+  function typeBadge(l){
+    var st=statusOf(l);
+    var color = st ? st.color : "#9CA3AF";
+    var label = l.locationType==="live" ? "LIVE" : (l.locationType==="wochenplatz" ? "Woche" : "Standort");
+    return '<span class="badge" style="background:'+color+'">'+label+'</span>';
+  }
+  function loadMyLocations(){
+    var box=$("myLocs");
+    api("/providers/me/locations").then(function(r){
+      if(r.status===404 || r.status===403){ box.innerHTML='<div class="msg">Noch kein Foodtruck-Profil — siehe Hinweis oben.</div>'; throw "handled"; }
+      return r.json();
+    }).then(function(d){
+      var list=(d.locations||[]).filter(function(l){ return new Date(l.dateTo).getTime() > Date.now() - 86400000; })
+        .sort(function(a,b){ return new Date(a.dateFrom)-new Date(b.dateFrom); });
+      if(!list.length){ box.innerHTML='<div class="msg" style="color:var(--muted)">Noch keine Standorte eingetragen.</div>'; return; }
+      var h='';
+      list.forEach(function(l){
+        h+='<div class="loc-item"><div class="t">'+typeBadge(l)+esc(l.address||"")+
+           (l.eventName?(' · <b>'+esc(l.eventName)+'</b>'):'')+
+           '<br><small>'+fmtDate(l.dateFrom)+' – '+fmtDate(l.dateTo)+'</small></div>'+
+           '<button type="button" data-id="'+l.id+'">Löschen</button></div>';
+      });
+      box.innerHTML=h;
+      box.addEventListener("click", function(e){
+        var b=e.target.closest("button[data-id]"); if(!b) return;
+        if(!confirm("Diesen Standort wirklich löschen?")) return;
+        b.disabled=true;
+        api("/providers/me/locations/"+b.getAttribute("data-id"),{method:"DELETE"})
+          .then(function(){ loadMyLocations(); loadTrucks(); });
+      }, {once:true});
+    }).catch(function(e){ if(e!=="handled") box.innerHTML='<div class="msg">Standorte konnten nicht geladen werden.</div>'; });
+  }
+
+  function createLocation(){
+    var addr=$("npAddr").value.trim(), from=$("npFrom").value, to=$("npTo").value, ev=$("npEvent").value.trim();
+    var msg=$("npMsg"); msg.className="msg"; msg.textContent="";
+    if(!addr||!from||!to){ msg.textContent="Bitte Adresse, Von und Bis ausfüllen."; return; }
+    if(new Date(from)>=new Date(to)){ msg.textContent="Das Von-Datum muss vor dem Bis-Datum liegen."; return; }
+    $("npBtn").disabled=true;
+    api("/foodtruck-locations/geocode",{method:"POST",body:JSON.stringify({query:addr})})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var hit=d.results && d.results[0];
+        if(!hit){ msg.textContent="Adresse nicht gefunden — mit Straße, PLZ und Ort probieren."; $("npBtn").disabled=false; throw "handled"; }
+        return api("/providers/me/locations",{method:"POST",body:JSON.stringify({
+          address:hit.displayName, lat:hit.lat, lng:hit.lng,
+          dateFrom:new Date(from).toISOString(), dateTo:new Date(to).toISOString(),
+          eventName:ev||null, locationType:"standort"
+        })});
+      })
+      .then(function(r){ if(!r) return; return r.json().then(function(d){ return {ok:r.ok,d:d}; }); })
+      .then(function(res){
+        if(!res) return;
+        $("npBtn").disabled=false;
+        if(!res.ok){ $("npMsg").textContent=res.d.error||"Standort konnte nicht gespeichert werden."; return; }
+        $("npAddr").value=""; $("npFrom").value=""; $("npTo").value=""; $("npEvent").value="";
+        var m=$("npMsg"); m.className="msg ok-msg"; m.textContent="Gespeichert — dein Standort steht auf der Karte.";
+        loadMyLocations(); loadTrucks();
+      })
+      .catch(function(e){ if(e!=="handled"){ $("npBtn").disabled=false; $("npMsg").textContent="Keine Verbindung zum Server."; } });
+  }
+
+  /* ---------- Start ---------- */
+  loadTrucks();
+  locate(); // fragt beim Start nach dem Standort — Kern-Wunsch: öffnen und sofort sehen, was in der Nähe ist
+  setInterval(loadTrucks, 120000); // alle 2 Minuten auffrischen, damit LIVE-Pins aktuell sind
+})();
+</script>
+<script>
+  if("serviceWorker" in navigator){
+    window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
+  }
+</script>
+</body>
+</html>
