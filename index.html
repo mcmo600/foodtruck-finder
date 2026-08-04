@@ -114,7 +114,6 @@
   <nav class="tabs">
     <button class="tab on" id="tabMap" type="button">🗺️ Karte</button>
     <button class="tab" id="tabTruck" type="button">🚚 Für Foodtrucks</button>
-    <button class="tab" id="tabInfo" type="button">ℹ️ Info</button>
   </nav>
 </header>
 
@@ -193,7 +192,10 @@
   </section>
 </main>
 
-<footer><img src="icons/partyretter-maskottchen.png" alt="" style="height:22px;width:auto;vertical-align:-6px;margin-right:4px">Ein Service von <a href="https://partyretter.com" target="_blank" rel="noopener">Partyretter</a> — Foodtrucks, Privatköche, Getränke &amp; Events buchen</footer>
+<footer style="display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left">
+  <span><img src="icons/partyretter-maskottchen.png" alt="" style="height:22px;width:auto;vertical-align:-6px;margin-right:4px">Ein Service von <a href="https://partyretter.com" target="_blank" rel="noopener">Partyretter</a></span>
+  <a href="#" id="footInfo" style="color:rgba(245,240,232,.55);font-weight:500;white-space:nowrap">ℹ️ Info &amp; Impressum</a>
+</footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
@@ -233,13 +235,12 @@
     $("viewInfo").classList.toggle("on", which==="info");
     $("tabMap").classList.toggle("on", which==="map");
     $("tabTruck").classList.toggle("on", which==="truck");
-    $("tabInfo").classList.toggle("on", which==="info");
     if(which==="map"){ setTimeout(function(){ map.invalidateSize(); }, 60); }
     if(which==="truck"){ renderTruckPanel(); }
   }
   $("tabMap").onclick=function(){ show("map"); };
   $("tabTruck").onclick=function(){ show("truck"); };
-  $("tabInfo").onclick=function(){ show("info"); };
+  $("footInfo").onclick=function(e){ e.preventDefault(); show("info"); };
 
   /* ---------- Karte ---------- */
   var map = L.map("map", { zoomControl:false }).setView([51.163, 10.447], 6);
