@@ -7,8 +7,8 @@
 <meta name="description" content="Finde Foodtrucks live in deiner Nähe — mit Karte und Navigation. Ein Service von Partyretter.">
 <meta name="theme-color" content="#14100a">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="favicon.ico?v=1">
-<link rel="apple-touch-icon" href="icons/icon-192.png?v=1">
+<link rel="icon" href="favicon.ico?v=2">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
@@ -136,8 +136,8 @@
             <option value="0">Alle</option>
           </select>
           <select id="dayFilter" title="Tag" style="flex:1">
-            <option value="" selected>Alle Tage</option>
-            <option value="heute">Heute</option>
+            <option value="heute" selected>Heute</option>
+            <option value="">Alle Tage</option>
             <option value="morgen">Morgen</option>
             <option value="Mo">Montag</option>
             <option value="Di">Dienstag</option>
@@ -458,11 +458,21 @@
     requestGeo(function(pos){
       userPos={lat:pos.coords.latitude, lng:pos.coords.longitude};
       searchCenter=userPos;
+      try{ localStorage.removeItem("ftf_search"); }catch(e){} // GPS gewinnt — gemerkte Stadt vergessen
+      $("q").value="";
       map.setView([userPos.lat,userPos.lng], zoomForRadius()===6?11:zoomForRadius());
       loadTrucks();
     }, function(msg){ note(msg, 9000); });
   }
   $("locBtn").onclick=locate;
+
+  // Letzte Suche merken: wer am Wochenende Berlin gesucht hat, startet wieder in Berlin.
+  function rememberSearch(q, lat, lng){
+    try{ localStorage.setItem("ftf_search", JSON.stringify({q:q, r:$("radius").value, lat:lat, lng:lng})); }catch(e){}
+  }
+  function savedSearch(){
+    try{ return JSON.parse(localStorage.getItem("ftf_search")||"null"); }catch(e){ return null; }
+  }
 
   function doSearch(){
     var q=$("q").value.trim(); if(!q){ locate(); return; }
@@ -472,6 +482,7 @@
         var hit=d.results && d.results[0];
         if(!hit){ note("Ort nicht gefunden — versuch es mit PLZ und Stadt."); return; }
         searchCenter={lat:hit.lat, lng:hit.lng};
+        rememberSearch(q, hit.lat, hit.lng);
         map.setView([hit.lat,hit.lng], zoomForRadius()===6?11:zoomForRadius());
         $("q").blur();
         loadTrucks();
@@ -481,6 +492,7 @@
   $("goBtn").onclick=doSearch;
   $("q").addEventListener("keydown", function(e){ if(e.key==="Enter"){ e.preventDefault(); doSearch(); } });
   $("radius").addEventListener("change", function(){
+    var s=savedSearch(); if(s){ s.r=$("radius").value; try{ localStorage.setItem("ftf_search", JSON.stringify(s)); }catch(e){} }
     if(searchCenter){ map.setView([searchCenter.lat,searchCenter.lng], zoomForRadius()===6?map.getZoom():zoomForRadius()); }
     loadTrucks();
   });
@@ -846,8 +858,19 @@
   }
 
   /* ---------- Start ---------- */
-  loadTrucks();
-  locate(); // fragt beim Start nach dem Standort — Kern-Wunsch: öffnen und sofort sehen, was in der Nähe ist
+  // Gemerkte Suche zuerst: wer zuletzt eine Stadt gesucht hat, startet dort —
+  // ohne GPS-Abfrage. Ohne gemerkte Suche: Standort anfragen (öffnen & sofort sehen).
+  var startSaved = savedSearch();
+  if(startSaved && startSaved.lat!=null){
+    $("q").value = startSaved.q || "";
+    if(startSaved.r) $("radius").value = startSaved.r;
+    searchCenter = {lat:startSaved.lat, lng:startSaved.lng};
+    map.setView([startSaved.lat, startSaved.lng], zoomForRadius()===6?11:zoomForRadius());
+    loadTrucks();
+  } else {
+    loadTrucks();
+    locate();
+  }
   setInterval(loadTrucks, 120000); // alle 2 Minuten auffrischen, damit LIVE-Pins aktuell sind
 })();
 </script>
