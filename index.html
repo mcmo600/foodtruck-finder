@@ -272,7 +272,7 @@
     return wd.indexOf(WD_SHORT[d.getDay()])>=0;
   }
 
-  function note(text, ms){
+  function note(text, ms){ /* ms optional: längere Anzeige für Anleitungen */
     var n=$("mapNote"); n.textContent=text; n.style.display="block";
     clearTimeout(note._t); note._t=setTimeout(function(){ n.style.display="none"; }, ms||4200);
   }
@@ -402,22 +402,35 @@
       .catch(function(){ note("Daten konnten nicht geladen werden. Prüf deine Internetverbindung."); });
   }
 
+  // Standort-Berechtigung sauber anfragen. Wichtigster Fall: wurde die Abfrage
+  // einmal weggedrückt, fragt der Browser NIE wieder von selbst — dann braucht
+  // der Nutzer eine klare Anleitung statt eines stummen Fehlschlags.
+  function geoBlockedMsg(){
+    return "Der Standortzugriff ist für diese Seite blockiert. So gibst du ihn frei: Tippe oben neben der Adresse auf das Schloss- bzw. Einstellungs-Symbol → „Berechtigungen“ → „Standort“ → „Zulassen“. Danach hier nochmal probieren.";
+  }
+  function requestGeo(onOk, onErr){
+    if(!navigator.geolocation){ onErr("Dein Gerät unterstützt keine Standortbestimmung — nutz die Stadt-Suche."); return; }
+    function run(){
+      navigator.geolocation.getCurrentPosition(
+        function(p){ onOk(p); },
+        function(err){ onErr(err.code===err.PERMISSION_DENIED ? geoBlockedMsg() : "Standort konnte gerade nicht ermittelt werden — ist GPS eingeschaltet? Sonst einfach die Adresse bzw. Stadt eintippen."); },
+        {enableHighAccuracy:true, timeout:15000, maximumAge:0}
+      );
+    }
+    if(navigator.permissions && navigator.permissions.query){
+      navigator.permissions.query({name:"geolocation"})
+        .then(function(st){ if(st.state==="denied"){ onErr(geoBlockedMsg()); } else { run(); } })
+        .catch(run);
+    } else { run(); }
+  }
+
   function locate(){
-    if(!navigator.geolocation){ note("Standortbestimmung wird nicht unterstützt — nutz die Stadt-Suche."); return; }
-    navigator.geolocation.getCurrentPosition(
-      function(pos){
-        userPos={lat:pos.coords.latitude, lng:pos.coords.longitude};
-        searchCenter=userPos;
-        map.setView([userPos.lat,userPos.lng], zoomForRadius()===6?11:zoomForRadius());
-        loadTrucks();
-      },
-      function(err){
-        note(err.code===err.PERMISSION_DENIED
-          ? "Standort abgelehnt — gib einfach deine Stadt ein."
-          : "Standort nicht gefunden — gib einfach deine Stadt ein.");
-      },
-      {enableHighAccuracy:true, timeout:12000, maximumAge:60000}
-    );
+    requestGeo(function(pos){
+      userPos={lat:pos.coords.latitude, lng:pos.coords.longitude};
+      searchCenter=userPos;
+      map.setView([userPos.lat,userPos.lng], zoomForRadius()===6?11:zoomForRadius());
+      loadTrucks();
+    }, function(msg){ note(msg, 9000); });
   }
   $("locBtn").onclick=locate;
 
@@ -482,7 +495,9 @@
         '<button class="btn gold" id="npBtn" type="button">Standort speichern</button>'+
         '<div class="msg" id="npMsg"></div>'+
       '</div>'+
-      '<div class="card"><h3>🗂️ Deine Standorte</h3><div id="myLocs">Lade…</div></div>'+
+      '<div class="card"><h3>🗂️ Deine Standorte</h3>'+
+        '<p class="hint">Alle deine eingetragenen Plätze und Termine auf einen Blick — so sehen Kunden, wo sie dich antreffen. Und wichtig fürs Geschäft: Wo du grundsätzlich herkommst (dein Standort fürs Buchen im Umkreis), stellst du in deinem Profil auf partyretter.com ein — darüber finden dich Kunden aus deiner Gegend für ihre Feiern.</p>'+
+        '<div id="myLocs">Lade…</div></div>'+
       '<p class="sub">Profil, Fotos, Preise und alles Weitere pflegst du wie gewohnt auf <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">partyretter.com</a>.</p>';
     $("loBtn").onclick=function(){ clearAuth(); renderTruckPanel(); };
     $("npBtn").onclick=createLocation;
@@ -567,19 +582,16 @@
   }
   function goLiveGps(){
     var msg=$("liveMsg"); msg.textContent="";
-    if(!navigator.geolocation){ msg.textContent="Kein GPS verfügbar — nutz das Adressfeld."; return; }
     $("goLive").disabled=true; $("goLive").textContent="Moment…";
-    navigator.geolocation.getCurrentPosition(function(pos){
+    requestGeo(function(pos){
       var lat=pos.coords.latitude, lng=pos.coords.longitude;
       api("/foodtruck-locations/reverse-geocode",{method:"POST",body:JSON.stringify({lat:lat,lng:lng})})
         .then(function(r){ return r.ok ? r.json() : {}; }).catch(function(){ return {}; })
         .then(function(d){ sendLive(lat,lng,d.displayName||""); });
-    }, function(err){
+    }, function(errMsg){
       $("goLive").disabled=false; $("goLive").textContent="📍 Ich stehe jetzt hier — LIVE";
-      msg.textContent = err.code===err.PERMISSION_DENIED
-        ? "Standortzugriff abgelehnt — erlaub ihn in den Einstellungen oder nutz das Adressfeld."
-        : "Standort nicht gefunden — nutz das Adressfeld.";
-    }, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
+      msg.textContent=errMsg+" Alternativ: Adresse unten eintippen.";
+    });
   }
   function goLiveAddress(){
     var q=$("liveAddr").value.trim(), msg=$("liveMsg"); msg.textContent="";
