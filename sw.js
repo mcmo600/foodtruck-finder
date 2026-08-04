@@ -1,9 +1,10 @@
 // Foodtruck Finder — Service Worker (network-first, damit Updates sofort erscheinen)
-const CACHE = "foodtruck-finder-v6";
+const CACHE = "foodtruck-finder-v7";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest",
   "./favicon.ico", "./icons/icon-192.png", "./icons/icon-512.png",
-  "./icons/partyretter-maskottchen.png"
+  "./icons/partyretter-maskottchen.png",
+  "./datenschutz.html", "./nutzungsbedingungen.html"
 ];
 
 self.addEventListener("install", (e) => {
@@ -30,8 +31,12 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        // Nur ECHTE Erfolge cachen — sonst landet z. B. GitHubs Störungsseite
+        // im Cache und wird nach der Störung weiter angezeigt (03.08.2026 passiert).
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        }
         return res;
       })
       .catch(() => caches.match(e.request).then((m) => m || caches.match("./index.html")))

@@ -114,6 +114,7 @@
   <nav class="tabs">
     <button class="tab on" id="tabMap" type="button">🗺️ Karte</button>
     <button class="tab" id="tabTruck" type="button">🚚 Für Foodtrucks</button>
+    <button class="tab" id="tabInfo" type="button">ℹ️ Info</button>
   </nav>
 </header>
 
@@ -165,6 +166,31 @@
   <section class="view" id="viewTruck">
     <div class="panel" id="truckPanel"><!-- wird per JS gefüllt --></div>
   </section>
+
+  <!-- Info: über die App, Impressum, Datenschutz -->
+  <section class="view" id="viewInfo">
+    <div class="panel">
+      <div style="text-align:center;margin-bottom:10px"><img src="icons/partyretter-maskottchen.png" alt="Partyretter" style="height:110px;width:auto"></div>
+      <h2>Über den Foodtruck Finder</h2>
+      <p class="sub">Finde Foodtrucks live in deiner Nähe — mit Karte, Tag-Filter und Google-Maps-Navigation.
+      Foodtruck-Betreiber zeigen mit einem Knopfdruck, wo sie gerade stehen.
+      Ein kostenloser Dienst von <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">Partyretter</a> —
+      dort kannst du Foodtrucks, Privatköche, Getränke und Events für deine Feier buchen.</p>
+      <div class="card"><h3>Impressum</h3>
+        <p style="font-size:14px;line-height:1.6">Angaben gemäß § 5 DDG:<br><br>
+        Alexander Moser<br>Ulmer Str. 45<br>88471 Laupheim<br>Deutschland<br><br>
+        E-Mail: <a href="mailto:info@partyretter.com" style="color:var(--gold)">info@partyretter.com</a><br>
+        Telefon: +49 171 2135021</p>
+        <p class="hint" style="margin-top:8px">Als Kleinunternehmer im Sinne des § 19 UStG wird keine Umsatzsteuer ausgewiesen.</p>
+      </div>
+      <div class="card"><h3>Rechtliches</h3>
+        <a class="btn ghost" style="text-decoration:none;text-align:center;display:block;margin-bottom:8px" href="datenschutz.html">🔒 Datenschutzerklärung</a>
+        <a class="btn ghost" style="text-decoration:none;text-align:center;display:block" href="nutzungsbedingungen.html">📄 Nutzungsbedingungen &amp; Impressum</a>
+        <p class="hint" style="margin-top:10px">Kurz gesagt: keine Cookies, kein Tracking. Dein Standort wird nur mit deiner Zustimmung
+        genutzt und nicht dauerhaft gespeichert. Standort-Einträge der Foodtrucks sind öffentlich — das ist ihr Zweck.</p>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer><img src="icons/partyretter-maskottchen.png" alt="" style="height:22px;width:auto;vertical-align:-6px;margin-right:4px">Ein Service von <a href="https://partyretter.com" target="_blank" rel="noopener">Partyretter</a> — Foodtrucks, Privatköche, Getränke &amp; Events buchen</footer>
@@ -204,13 +230,16 @@
   function show(which){
     $("viewMap").classList.toggle("on", which==="map");
     $("viewTruck").classList.toggle("on", which==="truck");
+    $("viewInfo").classList.toggle("on", which==="info");
     $("tabMap").classList.toggle("on", which==="map");
     $("tabTruck").classList.toggle("on", which==="truck");
+    $("tabInfo").classList.toggle("on", which==="info");
     if(which==="map"){ setTimeout(function(){ map.invalidateSize(); }, 60); }
     if(which==="truck"){ renderTruckPanel(); }
   }
   $("tabMap").onclick=function(){ show("map"); };
   $("tabTruck").onclick=function(){ show("truck"); };
+  $("tabInfo").onclick=function(){ show("info"); };
 
   /* ---------- Karte ---------- */
   var map = L.map("map", { zoomControl:false }).setView([51.163, 10.447], 6);
