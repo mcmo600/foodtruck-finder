@@ -127,12 +127,26 @@
           <button class="btn-ico" id="locBtn" type="button" title="Mein Standort">📍</button>
         </div>
         <div class="search-row">
-          <select id="radius" title="Umkreis">
+          <select id="radius" title="Umkreis" style="flex:1">
             <option value="10">10 km</option>
             <option value="25" selected>25 km</option>
             <option value="50">50 km</option>
             <option value="0">Alle</option>
           </select>
+          <select id="dayFilter" title="Tag" style="flex:1">
+            <option value="" selected>Alle Tage</option>
+            <option value="heute">Heute</option>
+            <option value="morgen">Morgen</option>
+            <option value="Mo">Montag</option>
+            <option value="Di">Dienstag</option>
+            <option value="Mi">Mittwoch</option>
+            <option value="Do">Donnerstag</option>
+            <option value="Fr">Freitag</option>
+            <option value="Sa">Samstag</option>
+            <option value="So">Sonntag</option>
+          </select>
+        </div>
+        <div class="search-row">
           <button class="btn-ico" id="goBtn" type="button" title="Suchen" style="flex:1;font-size:14px;font-weight:700">Suchen</button>
         </div>
       </div>
@@ -229,6 +243,34 @@
     return (R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))) <= r;
   }
   function zoomForRadius(){ var r=radiusKm(); return r===10?12 : r===25?11 : r===50?10 : 6; }
+
+  // Tag-Filter: „Heute“/„Morgen“ = konkretes Datum, Wochentag = nächstes Vorkommen.
+  var WD_SHORT=["So","Mo","Di","Mi","Do","Fr","Sa"];
+  function targetDay(){
+    var v=$("dayFilter").value;
+    if(!v) return null;
+    var d=new Date();
+    if(v==="heute"){ /* heute */ }
+    else if(v==="morgen"){ d.setDate(d.getDate()+1); }
+    else {
+      var want=WD_SHORT.indexOf(v);
+      var diff=(want-d.getDay()+7)%7;
+      d.setDate(d.getDate()+diff);
+    }
+    return d;
+  }
+  function dayMatchesLocation(l){
+    var d=targetDay(); if(!d) return true;
+    var start=new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,0,0).getTime();
+    var end=start+86400000-1;
+    return new Date(l.dateFrom).getTime()<=end && new Date(l.dateTo).getTime()>=start;
+  }
+  function dayMatchesStammplatz(sp){
+    var d=targetDay(); if(!d) return true;
+    var wd=sp.weekdays||[];
+    if(!wd.length) return true;
+    return wd.indexOf(WD_SHORT[d.getDay()])>=0;
+  }
 
   function note(text, ms){
     var n=$("mapNote"); n.textContent=text; n.style.display="block";
@@ -332,6 +374,7 @@
         (data.locations||[]).forEach(function(l){
           if(l.lat==null||l.lng==null) return;
           if(!inRange(l.lat,l.lng)) return;
+          if(!dayMatchesLocation(l)) return;
           var st=statusOf(l); if(!st) return;
           count+=1;
           L.marker([l.lat,l.lng],{icon:makeIcon(st.color, truckEmoji(l.providerId))})
@@ -343,6 +386,7 @@
           (t.stammplaetze||[]).forEach(function(sp){
             if(sp.lat==null||sp.lng==null) return;
             if(!inRange(sp.lat,sp.lng)) return;
+            if(!dayMatchesStammplatz(sp)) return;
             count+=1;
             L.marker([sp.lat,sp.lng],{icon:makeIcon("#7C3AED", (t.mapIcon&&t.mapIcon.trim())?t.mapIcon:"🚚")})
               .bindPopup(spPopupHtml(t,sp), {maxWidth:260})
@@ -397,6 +441,7 @@
     if(searchCenter){ map.setView([searchCenter.lat,searchCenter.lng], zoomForRadius()===6?map.getZoom():zoomForRadius()); }
     loadTrucks();
   });
+  $("dayFilter").addEventListener("change", loadTrucks);
 
   /* ---------- Betreiber-Bereich ---------- */
   var liveHours = 2; // Standard: 2 Stunden (Alexanders Vorgabe)
