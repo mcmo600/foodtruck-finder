@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.partyretter.foodtruckfinder",
+        "sha256_cert_fingerprints": ["F6:7B:3F:EE:3D:16:15:0F:5D:73:A1:05:F0:D0:D3:3E:EC:0C:60:2D:26:02:0F:D5:85:54:DC:69:98:64:7D:38"]
+      }
+    }]
