@@ -1,8 +1,9 @@
 // Foodtruck Finder — Service Worker (network-first, damit Updates sofort erscheinen)
-const CACHE = "foodtruck-finder-v5";
+const CACHE = "foodtruck-finder-v6";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest",
-  "./favicon.ico", "./icons/icon-192.png", "./icons/icon-512.png"
+  "./favicon.ico", "./icons/icon-192.png", "./icons/icon-512.png",
+  "./icons/partyretter-maskottchen.png"
 ];
 
 self.addEventListener("install", (e) => {

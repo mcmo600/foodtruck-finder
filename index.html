@@ -26,7 +26,8 @@
   /* Kopf */
   header{background:var(--dark);color:var(--cream);padding:calc(env(safe-area-inset-top) + 10px) 14px 0;flex:0 0 auto}
   .head-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-  .brand{font-family:'Fraunces',serif;font-weight:900;font-size:21px;color:var(--gold);line-height:1.15;padding:4px 0 8px}
+  .brand{font-family:'Fraunces',serif;font-weight:900;font-size:21px;color:var(--gold);line-height:1.15;padding:4px 0 8px;display:flex;align-items:center;gap:9px}
+  .brand-m{height:42px;width:auto}
   .brand small{display:block;font-family:'DM Sans',sans-serif;font-weight:500;font-size:11px;color:rgba(245,240,232,.55);letter-spacing:.06em}
   .tabs{display:flex;gap:4px}
   .tab{appearance:none;border:none;background:transparent;color:rgba(245,240,232,.65);font:700 14px 'DM Sans',sans-serif;
@@ -108,7 +109,7 @@
 
 <header>
   <div class="head-row">
-    <div class="brand">🚚 Foodtruck Finder<small>live von Partyretter</small></div>
+    <div class="brand"><img class="brand-m" src="icons/partyretter-maskottchen.png" alt="Partyretter-Maskottchen"><span>Foodtruck Finder<small>live von Partyretter</small></span></div>
   </div>
   <nav class="tabs">
     <button class="tab on" id="tabMap" type="button">🗺️ Karte</button>
@@ -166,7 +167,7 @@
   </section>
 </main>
 
-<footer>Ein Service von <a href="https://partyretter.com" target="_blank" rel="noopener">Partyretter</a> — Foodtrucks, Privatköche, Getränke &amp; Events buchen</footer>
+<footer><img src="icons/partyretter-maskottchen.png" alt="" style="height:22px;width:auto;vertical-align:-6px;margin-right:4px">Ein Service von <a href="https://partyretter.com" target="_blank" rel="noopener">Partyretter</a> — Foodtrucks, Privatköche, Getränke &amp; Events buchen</footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
@@ -465,6 +466,7 @@
     var u=getUser();
     if(!getToken() || !u){
       p.innerHTML =
+        '<div style="text-align:center;margin-bottom:8px"><img src="icons/partyretter-maskottchen.png" alt="Partyretter" style="height:96px;width:auto"></div>'+
         '<h2>Für Foodtruck-Betreiber</h2>'+
         '<p class="sub">Melde dich mit deinem Partyretter-Konto an. Dann zeigst du mit einem Knopfdruck, wo du gerade stehst — deine Kunden sehen dich sofort auf der Karte.</p>'+
         '<div class="card">'+
@@ -487,6 +489,7 @@
         '<div id="spBox">Lade…</div></div>'+
       '<div class="card"><h3>📅 Einzelnen Standort anlegen</h3>'+
         '<p class="hint">Für einen einzelnen Termin — z. B. ein Event oder einen besonderen Halt. Deine festen wöchentlichen Plätze trägst du oben ein.</p>'+
+        '<button class="btn ghost" id="npGps" type="button">📍 Ich stehe gerade dort — Adresse übernehmen</button>'+
         '<label class="f" for="npAddr">Adresse (Straße, PLZ, Ort)</label><input class="f" id="npAddr" type="text">'+
         '<label class="f" for="npFrom">Von</label><input class="f" id="npFrom" type="datetime-local">'+
         '<label class="f" for="npTo">Bis</label><input class="f" id="npTo" type="datetime-local">'+
@@ -501,6 +504,15 @@
       '<p class="sub">Profil, Fotos, Preise und alles Weitere pflegst du wie gewohnt auf <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">partyretter.com</a>.</p>';
     $("loBtn").onclick=function(){ clearAuth(); renderTruckPanel(); };
     $("npBtn").onclick=createLocation;
+    $("npGps").onclick=function(){
+      var msg=$("npMsg"); msg.className="msg"; msg.textContent="Hole Standort…";
+      $("npGps").disabled=true;
+      gpsAddress(function(a){
+        $("npAddr").value=a.displayName;
+        msg.className="msg ok-msg"; msg.textContent="Adresse übernommen — jetzt nur noch Von/Bis wählen.";
+        $("npGps").disabled=false;
+      }, function(errMsg){ msg.className="msg"; msg.textContent=errMsg; $("npGps").disabled=false; });
+    };
     loadLive(); loadMyLocations(); loadStammplaetze();
   }
 
@@ -656,6 +668,34 @@
       .catch(function(e){ if(e!=="handled") box.innerHTML='<div class="msg">Wochenplätze konnten nicht geladen werden.</div>'; });
   }
 
+  // GPS → Adresse: holt den aktuellen Standort und schlägt die Adresse nach.
+  // Praktisch, wenn der Truck GERADE dort steht — niemand muss tippen.
+  function gpsAddress(onOk, onErr){
+    requestGeo(function(pos){
+      var lat=pos.coords.latitude, lng=pos.coords.longitude;
+      api("/foodtruck-locations/reverse-geocode",{method:"POST",body:JSON.stringify({lat:lat,lng:lng})})
+        .then(function(r){ return r.ok ? r.json() : {}; }).catch(function(){ return {}; })
+        .then(function(d){ onOk({displayName:d.displayName||"", lat:lat, lng:lng}); });
+    }, onErr);
+  }
+  // Nominatim-Adresse grob in Straße/PLZ/Ort zerlegen — die Felder bleiben
+  // editierbar, der Nutzer prüft kurz. Der Server geocodet beim Speichern selbst.
+  function splitAddress(dn){
+    var parts=(dn||"").split(",").map(function(x){ return x.trim(); }).filter(Boolean);
+    var zip=((dn||"").match(/\b\d{5}\b/)||[""])[0];
+    var street=parts[0]||"", start=1;
+    if(/^\d+[a-zA-Z]?$/.test(street) && parts[1]){ street=parts[1]+" "+street; start=2; }
+    var skip=/Landkreis|Kreis |Regierungsbezirk|Deutschland|Baden-Württemberg|Bayern|Hessen|Sachsen|Thüringen|Rheinland|Nordrhein|Niedersachsen|Schleswig|Brandenburg|Mecklenburg|Saarland/i;
+    var city="";
+    for(var i=start;i<parts.length;i++){
+      var pp=parts[i];
+      if(!pp || /^\d{5}$/.test(pp) || skip.test(pp)) continue;
+      city=pp; // letzter brauchbarer vor Landkreis/Bundesland gewinnt nicht — erster reicht meist (Stadtteil/Stadt)
+      if(i+1<parts.length && skip.test(parts[i+1])) break;
+    }
+    return {street:street, zip:zip, city:city};
+  }
+
   function getStamm(){
     return (myProfile && myProfile.categoryDetails && myProfile.categoryDetails.foodtruck && myProfile.categoryDetails.foodtruck.stammplaetze) || [];
   }
@@ -674,6 +714,7 @@
     });
     if(!list.length) h+='<div class="msg" style="color:var(--muted)">Noch keine Wochenplätze eingetragen.</div>';
     h+='<div style="height:12px"></div><h3 style="font-size:14px;margin-bottom:2px">Neuen Wochenplatz anlegen</h3>'+
+      '<button class="btn ghost" id="spGps" type="button" style="margin-top:8px">📍 Ich stehe gerade dort — Adresse übernehmen</button>'+
       '<label class="f" for="spName">Name des Platzes (freiwillig)</label><input class="f" id="spName" type="text" placeholder="z. B. Wochenmarkt Laupheim">'+
       '<label class="f" for="spStreet">Straße</label><input class="f" id="spStreet" type="text">'+
       '<div class="grid2"><div><label class="f" for="spZip">PLZ</label><input class="f" id="spZip" type="text" inputmode="numeric"></div>'+
@@ -690,6 +731,16 @@
       b.onclick=function(){ b.classList.toggle("on"); };
       wdBox.appendChild(b);
     });
+    $("spGps").onclick=function(){
+      var msg=$("spMsg"); msg.className="msg"; msg.textContent="Hole Standort…";
+      $("spGps").disabled=true;
+      gpsAddress(function(a){
+        var t=splitAddress(a.displayName);
+        $("spStreet").value=t.street; $("spZip").value=t.zip; $("spCity").value=t.city;
+        msg.className="msg ok-msg"; msg.textContent="Adresse übernommen — bitte kurz prüfen, dann Wochentage wählen und speichern.";
+        $("spGps").disabled=false;
+      }, function(errMsg){ msg.className="msg"; msg.textContent=errMsg; $("spGps").disabled=false; });
+    };
     box.querySelectorAll("button[data-spi]").forEach(function(b){
       b.onclick=function(){
         if(!confirm("Diesen Wochenplatz wirklich löschen?")) return;
