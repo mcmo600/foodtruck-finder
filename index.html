@@ -469,8 +469,11 @@
     p.innerHTML =
       '<div class="topline"><div class="who">Angemeldet als <b>'+esc(u.name||u.email)+'</b></div><button id="loBtn" type="button">Abmelden</button></div>'+
       '<div class="card" id="liveCard"><h3>🔴 Jetzt live gehen</h3><div id="liveInner">Lade…</div></div>'+
+      '<div class="card"><h3>🗓️ Feste Wochenplätze</h3>'+
+        '<p class="hint">Wo stehst du regelmäßig? Wochentage, Uhrzeit und Adresse eintragen — dein Platz erscheint dauerhaft als lila Pin auf der Karte (höchstens 5 Plätze).</p>'+
+        '<div id="spBox">Lade…</div></div>'+
       '<div class="card"><h3>📅 Einzelnen Standort anlegen</h3>'+
-        '<p class="hint">Für einen einzelnen Termin — z. B. ein Event oder einen besonderen Halt. Deine festen wöchentlichen Plätze trägst du weiter unten ein.</p>'+
+        '<p class="hint">Für einen einzelnen Termin — z. B. ein Event oder einen besonderen Halt. Deine festen wöchentlichen Plätze trägst du oben ein.</p>'+
         '<label class="f" for="npAddr">Adresse (Straße, PLZ, Ort)</label><input class="f" id="npAddr" type="text">'+
         '<label class="f" for="npFrom">Von</label><input class="f" id="npFrom" type="datetime-local">'+
         '<label class="f" for="npTo">Bis</label><input class="f" id="npTo" type="datetime-local">'+
@@ -480,9 +483,6 @@
         '<div class="msg" id="npMsg"></div>'+
       '</div>'+
       '<div class="card"><h3>🗂️ Deine Standorte</h3><div id="myLocs">Lade…</div></div>'+
-      '<div class="card"><h3>🗓️ Feste Wochenplätze</h3>'+
-        '<p class="hint">Wo stehst du regelmäßig? Wochentage, Uhrzeit und Adresse eintragen — dein Platz erscheint dauerhaft als lila Pin auf der Karte (höchstens 5 Plätze).</p>'+
-        '<div id="spBox">Lade…</div></div>'+
       '<p class="sub">Profil, Fotos, Preise und alles Weitere pflegst du wie gewohnt auf <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">partyretter.com</a>.</p>';
     $("loBtn").onclick=function(){ clearAuth(); renderTruckPanel(); };
     $("npBtn").onclick=createLocation;
