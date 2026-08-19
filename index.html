@@ -632,7 +632,7 @@ var T, FTF_setSprache, FTF_sprache = "de";
           '<button class="btn gold" id="liBtn" type="button">Anmelden</button>'+
           '<div class="msg" id="liMsg"></div>'+
         '</div>'+
-        '<p class="sub" style="margin-top:4px">Noch kein Konto? Registrier dich auf <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">partyretter.com</a> als Anbieter (Kategorie Foodtruck).</p>';
+        '<p class="sub" style="margin-top:4px">Noch kein Konto? <a href="https://partyretter.com/registrieren?role=provider" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">Jetzt als Anbieter registrieren</a> — Kategorie Foodtruck wählen.</p>';
       $("liBtn").onclick=doLogin;
       $("liPass").addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); doLogin(); } });
       return;
@@ -657,7 +657,7 @@ var T, FTF_setSprache, FTF_sprache = "de";
       '<div class="card"><h3>🗂️ Deine Standorte</h3>'+
         '<p class="hint">Alle deine eingetragenen Plätze und Termine auf einen Blick — so sehen Kunden, wo sie dich antreffen. Und wichtig fürs Geschäft: Wo du grundsätzlich herkommst (dein Standort fürs Buchen im Umkreis), stellst du in deinem Profil auf partyretter.com ein — darüber finden dich Kunden aus deiner Gegend für ihre Feiern.</p>'+
         '<div id="myLocs">Lade…</div></div>'+
-      '<p class="sub">Profil, Fotos, Preise und alles Weitere pflegst du wie gewohnt auf <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">partyretter.com</a>.</p>';
+      '<p class="sub">Profil, Fotos, Preise und alles Weitere pflegst du wie gewohnt in <a href="https://partyretter.com/dashboard" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">deinem Partyretter-Konto</a>.</p>';
     $("loBtn").onclick=function(){ clearAuth(); renderTruckPanel(); };
     $("npBtn").onclick=createLocation;
     $("npGps").onclick=function(){
@@ -688,10 +688,10 @@ var T, FTF_setSprache, FTF_sprache = "de";
   }
 
   function agbHint(el){
-    el.innerHTML='<div class="msg">Dein Konto muss einmal die aktuellen AGB bestätigen. Melde dich dafür kurz auf <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold)">partyretter.com</a> an — danach klappt es hier.</div>';
+    el.innerHTML='<div class="msg">Dein Konto muss einmal die aktuellen AGB bestätigen. <a href="https://partyretter.com/login" target="_blank" rel="noopener" style="color:var(--gold)">Hier anmelden</a> — danach klappt es hier.</div>';
   }
   function foodtruckHint(el){
-    el.innerHTML='<div class="msg">Dieses Konto hat noch kein Foodtruck-Profil. Leg es auf <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold)">partyretter.com</a> an (Kategorie Foodtruck) — danach kannst du hier live gehen.</div>';
+    el.innerHTML='<div class="msg">Dieses Konto hat noch kein Foodtruck-Profil. <a href="https://partyretter.com/registrieren?role=provider" target="_blank" rel="noopener" style="color:var(--gold)">Hier Profil anlegen</a> (Kategorie Foodtruck) — danach kannst du hier live gehen.</div>';
   }
 
   function loadLive(){
@@ -817,8 +817,8 @@ var T, FTF_setSprache, FTF_sprache = "de";
   function loadStammplaetze(){
     var box=$("spBox"); if(!box) return;
     api("/providers/me").then(function(r){
-      if(r.status===404){ box.innerHTML='<div class="msg">Noch kein Anbieter-Profil — leg es zuerst auf <a href="https://partyretter.com" target="_blank" rel="noopener" style="color:var(--gold)">partyretter.com</a> an.</div>'; throw "handled"; }
-      if(r.status===403){ box.innerHTML='<div class="msg">Bitte melde dich einmal auf partyretter.com an und bestätige die AGB — danach klappt es hier.</div>'; throw "handled"; }
+      if(r.status===404){ box.innerHTML='<div class="msg">Noch kein Anbieter-Profil — <a href="https://partyretter.com/registrieren?role=provider" target="_blank" rel="noopener" style="color:var(--gold)">hier anlegen</a>.</div>'; throw "handled"; }
+      if(r.status===403){ box.innerHTML='<div class="msg">Bitte <a href="https://partyretter.com/login" target="_blank" rel="noopener" style="color:var(--gold)">einmal anmelden</a> und die AGB bestätigen — danach klappt es hier.</div>'; throw "handled"; }
       return r.json();
     }).then(function(p){ myProfile=p; renderStamm(); })
       .catch(function(e){ if(e!=="handled") box.innerHTML='<div class="msg">Wochenplätze konnten nicht geladen werden.</div>'; });
