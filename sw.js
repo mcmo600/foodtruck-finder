@@ -1,5 +1,5 @@
 // Foodtruck Finder — Service Worker (network-first, damit Updates sofort erscheinen)
-const CACHE = "foodtruck-finder-v10";
+const CACHE = "foodtruck-finder-v11";
 
 // PFLICHT: ohne diese Dateien startet die App nicht. Fehlt eine, soll die
 // Installation LAUT scheitern — mit Angabe, welche.
